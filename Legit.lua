@@ -224,20 +224,6 @@ mt.__index = function(self, key)
             local offset = velocity.Unit * prediction
             local hitPosition = target.Position + offset
 
-            if Ragebot.HitSound then
-                local sound = Instance.new("Sound")
-                sound.SoundId = "rbxassetid://4817809188"
-                sound.Parent = Workspace
-                sound:Play()
-                sound.Ended:Connect(function()
-                    sound:Destroy()
-                end)
-            end
-
-            if Ragebot.HitNotify then
-                Library:Notify("Hit " .. target.Parent.Name, 3)
-            end
-
             if Ragebot.Tracer then
                 local tracer = Instance.new("Part")
                 tracer.Size = Vector3.new(0.1, 0.1, (hitPosition - root.Position).Magnitude)
@@ -307,6 +293,45 @@ task.spawn(function()
                 if tool:IsA("Tool") then pcall(function() tool:Activate() end) end
             end
         end
+        
+        if Ragebot.HitSound then
+            local sound = Instance.new("Sound")
+            sound.SoundId = "rbxassetid://4817809188"
+            sound.Parent = Workspace
+            sound:Play()
+            sound.Ended:Connect(function()
+                sound:Destroy()
+            end)
+        end
+        
+        if Ragebot.HitNotify then
+            local target = nil
+            local closest = math.huge
+            local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            
+            if root then
+                for _, player in ipairs(Players:GetPlayers()) do
+                    if player ~= LocalPlayer and player.Character then
+                        local part = player.Character:FindFirstChild(Ragebot.AimPart)
+                        local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+                        if part and humanoid and humanoid.Health > 0 then
+                            local distance = (part.Position - root.Position).Magnitude
+                            if distance < closest then
+                                target = player
+                                closest = distance
+                            end
+                        end
+                    end
+                end
+                
+                if target then
+                    local humanoid = target.Character:FindFirstChildOfClass("Humanoid")
+                    Library:Notify(string.format("Hit %s | Health: %d | Distance: %.1f", 
+                        target.Name, math.floor(humanoid.Health), closest), 1)
+                end
+            end
+        end
+        
         task.wait(0.05)
     end
 end)

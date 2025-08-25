@@ -29,274 +29,197 @@ do
 end
 --// Main
 
+repeat task.wait() until game:IsLoaded()
+
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
-
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
 
 getgenv().Ragebot = {
-	Enabled = true,
-	AimPart = "HumanoidRootPart",
-	FOV = 2500,
-	Wallbang = true,
-	Trancer = true,
-	TrancerColor = Color3.fromRGB(199, 120, 221),
-	FOVCircle = true,
-	TargetList = {},
-	WhiteList = {},
-	PlayerNames = {}
+    Enabled = false,
+    FOV = 250,
+    AimPart = "Head",
+    Wallbang = false,
+    Trancer = false,
+    TrancerColor = Color3.fromRGB(199, 120, 221),
+    TargetList = {},
+    WhiteList = {},
+    PlayerNames = {}
 }
 
-local ColorThemes = {
-	["Tokyo Night"] = Color3.fromRGB(199, 120, 221),
-	["Midnight"] = Color3.fromRGB(25, 25, 112),
-	["Ice Blue"] = Color3.fromRGB(173, 216, 230),
-	["Sunset"] = Color3.fromRGB(255, 99, 71),
-	["Matrix Green"] = Color3.fromRGB(0, 255, 0),
-	["Cyberpunk"] = Color3.fromRGB(255, 0, 255),
-	["Pastel Dream"] = Color3.fromRGB(255, 182, 193),
-	["Blood Red"] = Color3.fromRGB(139, 0, 0),
-	["Solar Flare"] = Color3.fromRGB(255, 165, 0),
-	["Ocean Depth"] = Color3.fromRGB(0, 105, 148),
-	["Ghost White"] = Color3.fromRGB(248, 248, 255),
-	["Void"] = Color3.fromRGB(0, 0, 0)
-}
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/cat"))()
+local Window = Library:CreateWindow("LegitPlay.cc", Vector2.new(492, 598), Enum.KeyCode.RightControl)
+local Tab = Window:CreateTab("Ragebot")
+local Main = Tab:CreateSector("Main", "left")
+local Target = Tab:CreateSector("Targeting", "left")
 
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/Revenant", true))()
-local CombatWindow = Library:Window({Text = "Combat"})
-local TargetWindow = Library:Window({Text = "Targeting"})
-
-CombatWindow:Toggle({
-	Text = "Ragebot",
-	Flag = "RageEnabled",
-	Callback = function(bool)
-		Ragebot.Enabled = bool
-	end
-})
-
-CombatWindow:Toggle({
-	Text = "Wallbang",
-	Flag = "WallbangEnabled",
-	Callback = function(bool)
-		Ragebot.Wallbang = bool
-	end
-})
-
-CombatWindow:Toggle({
-	Text = "Trancer Setting",
-	Flag = "TrancerEnabled",
-	Callback = function(bool)
-		Ragebot.Trancer = bool
-	end
-})
-
-CombatWindow:Slider({
-	Text = "FOV Range",
-	Flag = "FOVSlider",
-	Default = 150,
-	Minimum = 50,
-	Maximum = 2500,
-	Callback = function(val)
-		Ragebot.FOV = val
-	end
-})
-
-CombatWindow:Toggle({
-	Text = "Show FOV Circle",
-	Flag = "FOVCircleEnabled",
-	Callback = function(bool)
-		Ragebot.FOVCircle = bool
-	end
-})
-
-local FOVCircle = Drawing.new("Circle")
-FOVCircle.Visible = false
-FOVCircle.Color = Ragebot.TrancerColor
-FOVCircle.Thickness = 2
-FOVCircle.Filled = false
-FOVCircle.Transparency = 1
-
-RunService.RenderStepped:Connect(function()
-	if Ragebot.FOVCircle then
-		FOVCircle.Visible = true
-		FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-		FOVCircle.Radius = Ragebot.FOV
-		FOVCircle.Color = Ragebot.TrancerColor
-	else
-		FOVCircle.Visible = false
-	end
+Main:AddToggle("Enable Ragebot", false, function(v)
+    Ragebot.Enabled = v
 end)
 
-local function RefreshPlayerNames()
-	Ragebot.PlayerNames = {}
-	for _, plr in ipairs(Players:GetPlayers()) do
-		if plr ~= LocalPlayer then
-			table.insert(Ragebot.PlayerNames, plr.Name)
-		end
-	end
-end
+Main:AddSlider("FOV", 50, 2500, 250, 1, function(v)
+    Ragebot.FOV = v
+end)
+
+Main:AddDropdown("Aim Part", {"Head", "HumanoidRootPart"}, "Head", false, function(v)
+    Ragebot.AimPart = v
+end)
+
+Main:AddToggle("Wallbang", false, function(v)
+    Ragebot.Wallbang = v
+end)
+
+local TrancerToggle = Main:AddToggle("Trancer", false, function(v)
+    Ragebot.Trancer = v
+end)
+
+TrancerToggle:AddColorpicker(Ragebot.TrancerColor, function(c)
+    Ragebot.TrancerColor = c
+end)
+
+local TargetDropdown = Target:AddDropdown("TargetList", {}, nil, false, function(name)
+    local plr = Players:FindFirstChild(name)
+    if plr and not table.find(Ragebot.TargetList, plr) then
+        table.insert(Ragebot.TargetList, plr)
+    end
+end)
+
+local WhiteDropdown = Target:AddDropdown("WhiteList", {}, nil, false, function(name)
+    local plr = Players:FindFirstChild(name)
+    if plr and not table.find(Ragebot.WhiteList, plr) then
+        table.insert(Ragebot.WhiteList, plr)
+    end
+end)
+
+Target:AddButton("Clear TargetList", function()
+    Ragebot.TargetList = {}
+end)
+
+Target:AddButton("Clear WhiteList", function()
+    Ragebot.WhiteList = {}
+end)
+
+Tab:CreateConfigSystem("right")
 
 task.spawn(function()
-	while true do
-		RefreshPlayerNames()
-		task.wait(5)
-	end
+    while true do
+        Ragebot.PlayerNames = {}
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer then
+                table.insert(Ragebot.PlayerNames, plr.Name)
+            end
+        end
+        task.wait(2)
+    end
 end)
 
-TargetWindow:Dropdown({
-	Text = "Add to TargetList",
-	List = Ragebot.PlayerNames,
-	Callback = function(name)
-		local plr = Players:FindFirstChild(name)
-		if plr and not table.find(Ragebot.TargetList, plr) then
-			table.insert(Ragebot.TargetList, plr)
-			Library:Notification({Text = "Added to TargetList: " .. name, Duration = 3})
-		end
-	end
-})
-
-TargetWindow:Dropdown({
-	Text = "Add to WhiteList",
-	List = Ragebot.PlayerNames,
-	Callback = function(name)
-		local plr = Players:FindFirstChild(name)
-		if plr and not table.find(Ragebot.WhiteList, plr) then
-			table.insert(Ragebot.WhiteList, plr)
-			Library:Notification({Text = "Added to WhiteList: " .. name, Duration = 3})
-		end
-	end
-})
-
-TargetWindow:Button({
-	Text = "Clear TargetList",
-	Callback = function()
-		Ragebot.TargetList = {}
-		Library:Notification({Text = "TargetList Cleared", Duration = 2})
-	end
-})
-
-TargetWindow:Button({
-	Text = "Clear WhiteList",
-	Callback = function()
-		Ragebot.WhiteList = {}
-		Library:Notification({Text = "WhiteList Cleared", Duration = 2})
-	end
-})
+task.spawn(function()
+    while true do
+        if Ragebot.Enabled then
+            local char = LocalPlayer.Character
+            if char then
+                for _, obj in ipairs(char:GetDescendants()) do
+                    if obj.Name == "Ammo" then obj.Value = 999 end
+                end
+            end
+            local backpack = LocalPlayer:FindFirstChild("Backpack")
+            if backpack then
+                for _, obj in ipairs(backpack:GetDescendants()) do
+                    if obj.Name == "Ammo" then obj.Value = 999 end
+                end
+            end
+            for _, tool in ipairs(LocalPlayer.Backpack:GetChildren()) do
+                if tool:IsA("Tool") then pcall(function() tool:Activate() end) end
+            end
+            for _, tool in ipairs(LocalPlayer.Character:GetChildren()) do
+                if tool:IsA("Tool") then pcall(function() tool:Activate() end) end
+            end
+        end
+        task.wait(0.05)
+    end
+end)
 
 local mt = getrawmetatable(Mouse)
-local oldIndex = mt.__index
+local old = mt.__index
 setreadonly(mt, false)
 
 mt.__index = function(self, key)
-	if Ragebot.Enabled and key == "Hit" then
-		local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-		if not root then return oldIndex(self, key) end
+    if Ragebot.Enabled and key == "Hit" then
+        local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if not root then return old(self, key) end
 
-		local target, closest = nil, math.huge
-		for _, plr in ipairs(Ragebot.TargetList) do
-			if plr ~= LocalPlayer and plr.Character and not table.find(Ragebot.WhiteList, plr) then
-				local part = plr.Character:FindFirstChild(Ragebot.AimPart)
-				local hum = plr.Character:FindFirstChildOfClass("Humanoid")
-				if part and hum and hum.Health > 0 then
-					local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
-					if onScreen then
-						local dist = (Vector2.new(screenPos.X, screenPos.Y) - Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)).Magnitude
-						if dist < Ragebot.FOV and dist < closest then
-							target = part
-							closest = dist
-						end
-					end
-				end
-			end
-		end
+        local target, closest = nil, math.huge
+        for _, plr in ipairs(Ragebot.TargetList) do
+            if plr ~= LocalPlayer and plr.Character and not table.find(Ragebot.WhiteList, plr) then
+                local part = plr.Character:FindFirstChild(Ragebot.AimPart)
+                local hum = plr.Character:FindFirstChildOfClass("Humanoid")
+                if part and hum and hum.Health > 0 then
+                    local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
+                    if onScreen then
+                        local dist = (Vector2.new(screenPos.X, screenPos.Y) - Camera.ViewportSize / 2).Magnitude
+                        if dist < Ragebot.FOV and dist < closest then
+                            target = part
+                            closest = dist
+                        end
+                    end
+                end
+            end
+        end
 
-		if target then
-			local vel = target.Velocity
-			local lastVel = vel
-			local acc = (vel - lastVel) / 0.1
-		   
-			local mag = vel.Magnitude
-			local dir = vel.Unit
-			local dist = (target.Position - root.Position).Magnitude
-			local pred = (dist / 100) * (mag / 50)
-			local offset = dir * pred + acc * 0.01
-			local hitPos = target.Position + offset
+        if target then
+            local vel = target.Velocity
+            local dist = (target.Position - root.Position).Magnitude
+            local pred = (dist / 100) * (vel.Magnitude / 50)
+            local offset = vel.Unit * pred
+            local hitPos = target.Position + offset
 
-			if Ragebot.Trancer then
-				local tracer = Instance.new("Part")
-				tracer.Size = Vector3.new(0.1, 0.1, (hitPos - root.Position).Magnitude)
-				tracer.Anchored = true
-				tracer.CanCollide = false
-				tracer.Material = Enum.Material.Neon
-				tracer.Color = Ragebot.TrancerColor
-				tracer.Transparency = 1
-				tracer.CFrame = CFrame.lookAt(root.Position, hitPos)
-				tracer.Parent = Workspace
+            if Ragebot.Trancer then
+                local tracer = Instance.new("Part")
+                tracer.Size = Vector3.new(0.1, 0.1, (hitPos - root.Position).Magnitude)
+                tracer.Anchored = true
+                tracer.CanCollide = false
+                tracer.Material = Enum.Material.Neon
+                tracer.Color = Ragebot.TrancerColor
+                tracer.Transparency = 1
+                tracer.CFrame = CFrame.lookAt(root.Position, hitPos)
+                tracer.Parent = Workspace
 
-				local tweenIn = TweenService:Create(tracer, TweenInfo.new(0.3), {Transparency = 0.1})
-				local tweenOut = TweenService:Create(tracer, TweenInfo.new(0.4), {Transparency = 1})
+                local tweenIn = TweenService:Create(tracer, TweenInfo.new(0.3), {Transparency = 0.1})
+                local tweenOut = TweenService:Create(tracer, TweenInfo.new(0.4), {Transparency = 1})
 
-				tweenIn:Play()
-				tweenIn.Completed:Connect(function() tweenOut:Play() end)
-				tweenOut.Completed:Connect(function() tracer:Destroy() end)
-			end
+                tweenIn:Play()
+                tweenIn.Completed:Connect(function() tweenOut:Play() end)
+                tweenOut.Completed:Connect(function() tracer:Destroy() end)
+            end
 
-			if Ragebot.Wallbang then
-				local ghost = Instance.new("Part")
-				ghost.Size = Vector3.new(0.2, 0.2, (hitPos - root.Position).Magnitude)
-				ghost.Anchored = true
-				ghost.CanCollide = false
-				ghost.Material = Enum.Material.ForceField
-				ghost.Color = Ragebot.TrancerColor
-				ghost.Transparency = 1
-				ghost.CFrame = CFrame.lookAt(root.Position, hitPos)
-				ghost.Parent = Workspace
+            if Ragebot.Wallbang then
+                local ghost = Instance.new("Part")
+                ghost.Size = Vector3.new(0.2, 0.2, (hitPos - root.Position).Magnitude)
+                ghost.Anchored = true
+                ghost.CanCollide = false
+                ghost.Material = Enum.Material.ForceField
+                ghost.Color = Ragebot.TrancerColor
+                ghost.Transparency = 1
+                ghost.CFrame = CFrame.lookAt(root.Position, hitPos)
+                ghost.Parent = Workspace
 
-				local ghostTweenIn = TweenService:Create(ghost, TweenInfo.new(0.3), {Transparency = 0.3})
-				local ghostTweenOut = TweenService:Create(ghost, TweenInfo.new(0.4), {Transparency = 1})
+                local ghostTweenIn = TweenService:Create(ghost, TweenInfo.new(0.3), {Transparency = 0.3})
+                local ghostTweenOut = TweenService:Create(ghost, TweenInfo.new(0.4), {Transparency = 1})
 
-				ghostTweenIn:Play()
-				ghostTweenIn.Completed:Connect(function() ghostTweenOut:Play() end)
-				ghostTweenOut.Completed:Connect(function() ghost:Destroy() end)
-			end
+                ghostTweenIn:Play()
+                ghostTweenIn.Completed:Connect(function() ghostTweenOut:Play() end)
+                ghostTweenOut.Completed:Connect(function() ghost:Destroy() end)
+            end
 
-			return target
-		end
-	end
+            return target
+        end
+    end
 
-	return oldIndex(self, key)
+    return old(self, key)
 end
 
 setreadonly(mt, true)
-
-task.spawn(function()
-	while true do
-		local char = LocalPlayer.Character
-		if char then
-			for _, obj in ipairs(char:GetDescendants()) do
-				if obj.Name == "Ammo" then obj.Value = 999 end
-			end
-		end
-
-		local backpack = LocalPlayer:FindFirstChild("Backpack")
-		if backpack then
-			for _, obj in ipairs(backpack:GetDescendants()) do
-				if obj.Name == "Ammo" then obj.Value = 999 end
-			end
-		end
-
-		for _, tool in ipairs(LocalPlayer.Backpack:GetChildren()) do
-			if tool:IsA("Tool") then pcall(function() tool:Activate() end) end
-		end
-
-		for _, tool in ipairs(LocalPlayer.Character:GetChildren()) do
-			if tool:IsA("Tool") then pcall(function() tool:Activate() end) end
-		end
-
-		task.wait(0.05)
-	end
-end)

@@ -94,18 +94,6 @@ CombatWindow:Toggle({
 	end
 })
 
-CombatWindow:Dropdown({
-	Text = "Trancer style",
-	Flag = "TrancerColorStyle",
-	List = table.keys(ColorThemes),
-	Callback = function(selected)
-		local color = ColorThemes[selected]
-		if color then
-			Ragebot.TrancerColor = color
-		end
-	end
-})
-
 CombatWindow:Slider({
 	Text = "FOV Range",
 	Flag = "FOVSlider",

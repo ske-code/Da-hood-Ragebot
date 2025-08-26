@@ -181,7 +181,7 @@ end)
 local TargetDropdown = TargetSection:AddDropdown('TargetListDropdown', {
     Values = initialPlayerNames,
     Default = 1,
-    Text = 'Add Target',
+    Text = 'Add Target TelePort',
     Callback = function(Value)
         local player = Players:FindFirstChild(Value)
         if player and not table.find(Ragebot.TargetList, player) then
@@ -257,7 +257,44 @@ MovementSection:AddInput('TeleportOffsetInput', {
         end
     end
 })
+MovementSection:AddToggle('TargetStrafeToggle', {
+    Text = 'Enable Target Strafe',
+    Default = false,
+    Callback = function(Value)
+        Ragebot.TargetStrafe = Value
+    end
+})
 
+MovementSection:AddSlider('StrafeRadiusSlider', {
+    Text = 'Strafe Radius',
+    Default = 5,
+    Min = 1,
+    Max = 20,
+    Rounding = 1,
+    Callback = function(Value)
+        Ragebot.StrafeRadius = Value
+    end
+})
+
+MovementSection:AddSlider('StrafeSpeedSlider', {
+    Text = 'Strafe Speed',
+    Default = 20,
+    Min = 1,
+    Max = 500,
+    Rounding = 1,
+    Callback = function(Value)
+        Ragebot.StrafeSpeed = Value
+    end
+})
+
+MovementSection:AddDropdown('StrafeDirectionDropdown', {
+    Values = {'Clockwise', 'CounterClockwise'},
+    Default = 1,
+    Text = 'Strafe Direction',
+    Callback = function(Value)
+        Ragebot.StrafeDirection = Value
+    end
+})
 local function getClosestTarget()
     local closestTarget = nil
     local closestDistance = math.huge

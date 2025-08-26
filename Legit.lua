@@ -4,6 +4,7 @@ local Library = loadstring(game:HttpGet(repo .. 'Library.lua'))()
 local ThemeManager = loadstring(game:HttpGet(repo .. 'addons/ThemeManager.lua'))()
 local SaveManager = loadstring(game:HttpGet(repo .. 'addons/SaveManager.lua'))()
 
+
 getgenv().Ragebot = {
     Enabled = false,
     FOV = 250,
@@ -16,10 +17,15 @@ getgenv().Ragebot = {
     PlayerNames = {},
     ClosestMode = false,
     HitSound = false,
-    HitNotify = false
+    HitNotify = false,
+    Teleport = false,
+    TeleportMode = "Behind",
+    TeleportOffset = Vector3.new(0, 0, 0),
+    TargetStrafe = false,
+    StrafeRadius = 5,
+    StrafeSpeed = 20,
+    StrafeDirection = "Clockwise"
 }
-
-
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local TweenService = game:GetService("TweenService")
@@ -36,12 +42,14 @@ local Window = Library:CreateWindow({
 
 local Tabs = {
     Ragebot = Window:AddTab('Ragebot'),
+    Movement = Window:AddTab('Movement'),
     Settings = Window:AddTab('Settings'),
 }
 
 local MainSection = Tabs.Ragebot:AddLeftGroupbox('Main')
 local TargetSection = Tabs.Ragebot:AddRightGroupbox('Targeting')
 local VisualSection = Tabs.Ragebot:AddLeftGroupbox('Visuals')
+local MovementSection = Tabs.Movement:AddLeftGroupbox('Movement')
 
 MainSection:AddToggle('EnableRagebot', {
     Text = 'Enable Ragebot',
@@ -170,6 +178,177 @@ task.spawn(function()
     end
 end)
 
+local TargetDropdown = TargetSection:AddDropdown('TargetListDropdown', {
+    Values = initialPlayerNames,
+    Default = 1,
+    Text = 'Add Target',
+    Callback = function(Value)
+        local player = Players:FindFirstChild(Value)
+        if player and not table.find(Ragebot.TargetList, player) then
+            table.insert(Ragebot.TargetList, player)
+            Library:Notify("Added " .. Value .. " to TargetList", 2)
+        end
+    end
+})
+
+local WhiteDropdown = TargetSection:AddDropdown('WhiteListDropdown', {
+    Values = initialPlayerNames,
+    Default = 1,
+    Text = 'Add to Whitelist',
+    Callback = function(Value)
+        local player = Players:FindFirstChild(Value)
+        if player and not table.find(Ragebot.WhiteList, player) then
+            table.insert(Ragebot.WhiteList, player)
+            Library:Notify("Added " .. Value .. " to Whitelist", 2)
+        end
+    end
+})
+
+TargetSection:AddButton('Clear TargetList', function()
+    Ragebot.TargetList = {}
+    Library:Notify("TargetList cleared", 2)
+end)
+
+TargetSection:AddButton('Clear WhiteList', function()
+    Ragebot.WhiteList = {}
+    Library:Notify("Whitelist cleared", 2)
+end)
+
+TargetSection:AddButton('Refresh Player List', function()
+    local currentPlayers = UpdatePlayerList()
+    TargetDropdown:SetValues(currentPlayers)
+    WhiteDropdown:SetValues(currentPlayers)
+    Library:Notify("Player list refreshed", 2)
+end)
+
+task.spawn(function()
+    while true do
+        local currentPlayers = UpdatePlayerList()
+        TargetDropdown:SetValues(currentPlayers)
+        WhiteDropdown:SetValues(currentPlayers)
+        task.wait(5)
+    end
+end)
+
+MovementSection:AddToggle('TeleportToggle', {
+    Text = 'Enable Teleport',
+    Default = false,
+    Callback = function(Value)
+        Ragebot.Teleport = Value
+    end
+})
+
+MovementSection:AddDropdown('TeleportModeDropdown', {
+    Values = {'Behind', 'Above', 'Custom'},
+    Default = 1,
+    Text = 'Teleport Mode',
+    Callback = function(Value)
+        Ragebot.TeleportMode = Value
+    end
+})
+
+MovementSection:AddInput('TeleportOffsetInput', {
+    Text = 'Teleport Offset (x,y,z)',
+    Default = '0,0,0',
+    Callback = function(Value)
+        local parts = string.split(Value, ",")
+        if #parts == 3 then
+            Ragebot.TeleportOffset = Vector3.new(tonumber(parts[1]), tonumber(parts[2]), tonumber(parts[3]))
+        end
+    end
+})
+
+local function getClosestTarget()
+    local closestTarget = nil
+    local closestDistance = math.huge
+    local localRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    
+    if not localRoot then return nil end
+    
+    local playersToCheck = {}
+    if Ragebot.ClosestMode then
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and not table.find(Ragebot.WhiteList, player) then
+                table.insert(playersToCheck, player)
+            end
+        end
+    else
+        playersToCheck = Ragebot.TargetList
+    end
+    
+    for _, player in ipairs(playersToCheck) do
+        if player and player.Character and not table.find(Ragebot.WhiteList, player) then
+            local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
+            if humanoidRootPart then
+                local distance = (humanoidRootPart.Position - localRoot.Position).Magnitude
+                if distance < closestDistance then
+                    closestDistance = distance
+                    closestTarget = player
+                end
+            end
+        end
+    end
+    
+    return closestTarget
+end
+
+local function teleportToTarget(target)
+    if not target or not target.Character then return end
+    
+    local targetRoot = target.Character:FindFirstChild("HumanoidRootPart")
+    local localRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    
+    if not targetRoot or not localRoot then return end
+    
+    local offset = Ragebot.TeleportOffset
+    local teleportPosition = targetRoot.Position
+    
+    if Ragebot.TeleportMode == "Behind" then
+        teleportPosition = targetRoot.Position - targetRoot.CFrame.LookVector * 5
+    elseif Ragebot.TeleportMode == "Above" then
+        teleportPosition = targetRoot.Position + Vector3.new(0, 5, 0)
+    elseif Ragebot.TeleportMode == "Custom" then
+        teleportPosition = targetRoot.Position + offset
+    end
+    
+    localRoot.CFrame = CFrame.new(teleportPosition)
+end
+
+local strafeAngle = 0
+local currentTarget = nil
+
+RunService.Heartbeat:Connect(function()
+    if Ragebot.Teleport then
+        local target = getClosestTarget()
+        if target then
+            teleportToTarget(target)
+        end
+    end
+    
+    if Ragebot.TargetStrafe then
+        local target = getClosestTarget()
+        if target and target.Character then
+            local targetRoot = target.Character:FindFirstChild("HumanoidRootPart")
+            local localRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            
+            if targetRoot and localRoot then
+                currentTarget = target
+                
+                local direction = Ragebot.StrafeDirection == "Clockwise" and 1 or -1
+                strafeAngle = strafeAngle + (Ragebot.StrafeSpeed * 0.2 * direction)
+                
+                local circlePosition = targetRoot.Position + Vector3.new(
+                    math.cos(strafeAngle) * Ragebot.StrafeRadius,
+                    0,
+                    math.sin(strafeAngle) * Ragebot.StrafeRadius
+                )
+                
+                localRoot.CFrame = CFrame.new(circlePosition, targetRoot.Position)
+            end
+        end
+    end
+end)
+     
 SaveManager:SetLibrary(Library)
 SaveManager:IgnoreThemeSettings()
 SaveManager:SetIgnoreIndexes({'MenuKeybind'})

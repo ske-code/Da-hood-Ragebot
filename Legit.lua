@@ -24,8 +24,14 @@ getgenv().Ragebot = {
     TargetStrafe = false,
     StrafeRadius = 5,
     StrafeSpeed = 20,
-    StrafeDirection = "Clockwise"
+    StrafeDirection = "Clockwise",
+    RichTracer = false,
+    TracerTexture = "rbxassetid://901813002",
+    TracerWidth = 0.3,
+    TracerLength = 15,
+    TracerSpeed = 2
 }
+
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local TweenService = game:GetService("TweenService")
@@ -213,7 +219,117 @@ TargetSection:AddButton('Clear WhiteList', function()
     Ragebot.WhiteList = {}
     Library:Notify("Whitelist cleared", 2)
 end)
+VisualSection:AddToggle('RichTracerToggle', {
+    Text = 'Rich Tracer',
+    Default = false,
+    Callback = function(Value)
+        Ragebot.RichTracer = Value
+    end
+})
 
+VisualSection:AddSlider('TracerWidthSlider', {
+    Text = 'Tracer Width',
+    Default = 0.3,
+    Min = 0.1,
+    Max = 1,
+    Rounding = 1,
+    Callback = function(Value)
+        Ragebot.TracerWidth = Value
+    end
+})
+
+VisualSection:AddSlider('TracerLengthSlider', {
+    Text = 'Tracer Length',
+    Default = 15,
+    Min = 5,
+    Max = 30,
+    Rounding = 1,
+    Callback = function(Value)
+        Ragebot.TracerLength = Value
+    end
+})
+
+VisualSection:AddSlider('TracerSpeedSlider', {
+    Text = 'Tracer Speed',
+    Default = 2,
+    Min = 1,
+    Max = 5,
+    Rounding = 1,
+    Callback = function(Value)
+        Ragebot.TracerSpeed = Value
+    end
+})
+
+local tracerContainer = Instance.new("Folder")
+tracerContainer.Name = "RichTracers"
+tracerContainer.Parent = Workspace
+
+local function createRichTracer(startPos, endPos)
+    if not Ragebot.RichTracer then return end
+    
+    local beamPart = Instance.new("Part")
+    beamPart.Name = "RichTracer"
+    beamPart.Anchored = true
+    beamPart.Size = Vector3.new(0.5, 0.5, 0.5)
+    beamPart.Transparency = 1
+    beamPart.CanCollide = false
+    beamPart.Parent = tracerContainer
+    
+    local distance = (startPos - endPos).Magnitude
+    local midPoint = (startPos + endPos) / 2
+    beamPart.Position = midPoint
+    
+    local beam = Instance.new("Beam")
+    beam.Attachment0 = Instance.new("Attachment")
+    beam.Attachment0.Parent = beamPart
+    beam.Attachment0.Position = Vector3.new(0, distance/2, 0)
+    
+    beam.Attachment1 = Instance.new("Attachment")
+    beam.Attachment1.Parent = beamPart
+    beam.Attachment1.Position = Vector3.new(0, -distance/2, 0)
+    
+    beam.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 183, 255)),
+        ColorSequenceKeypoint.new(0.3, Color3.fromRGB(100, 0, 255)),
+        ColorSequenceKeypoint.new(0.6, Color3.fromRGB(187, 0, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 183))
+    })
+    
+    beam.Texture = Ragebot.TracerTexture
+    beam.TextureSpeed = Ragebot.TracerSpeed
+    beam.TextureLength = Ragebot.TracerLength
+    beam.Width0 = Ragebot.TracerWidth
+    beam.Width1 = Ragebot.TracerWidth
+    beam.FaceCamera = true
+    beam.Parent = beamPart
+    
+    local lookCFrame = CFrame.new(midPoint, endPos)
+    beamPart.CFrame = lookCFrame
+    
+    beam.Width0 = 0
+    beam.Width1 = 0
+    
+    local tweenIn = TweenService:Create(beam, TweenInfo.new(0.2), {
+        Width0 = Ragebot.TracerWidth,
+        Width1 = Ragebot.TracerWidth
+    })
+    
+    local tweenOut = TweenService:Create(beam, TweenInfo.new(0.3), {
+        Width0 = 0,
+        Width1 = 0
+    })
+    
+    tweenIn:Play()
+    tweenIn.Completed:Connect(function()
+        task.wait(0.1)
+        tweenOut:Play()
+        tweenOut.Completed:Connect(function()
+            beamPart:Destroy()
+        end)
+    end)
+    
+    return beamPart
+end
 TargetSection:AddButton('Refresh Player List', function()
     local currentPlayers = UpdatePlayerList()
     TargetDropdown:SetValues(currentPlayers)
@@ -440,6 +556,10 @@ mt.__index = function(self, key)
             local offset = velocity.Unit * prediction
             local hitPosition = target.Position + offset
 
+            if Ragebot.RichTracer then
+                createRichTracer(root.Position, hitPosition)
+            end
+
             if Ragebot.Tracer then
                 local tracer = Instance.new("Part")
                 tracer.Size = Vector3.new(0.1, 0.1, (hitPosition - root.Position).Magnitude)
@@ -486,7 +606,6 @@ mt.__index = function(self, key)
 end
 
 setreadonly(mt, true)
-
 task.spawn(function()
     while true do
         if Ragebot.Enabled then

@@ -29,7 +29,10 @@ getgenv().Ragebot = {
     TracerTexture = "rbxassetid://901813002",
     TracerWidth = 0.3,
     TracerLength = 15,
-    TracerSpeed = 2
+    TracerSpeed = 2,
+    Desync = false,
+    DesyncMode = "Sleep",
+    DesyncVelocity = false
 }
 
 local Players = game:GetService("Players")
@@ -96,7 +99,7 @@ MainSection:AddSlider('FOVSlider', {
     Rounding = 0,
     Callback = function(Value)
         Ragebot.FOV = Value
-    end
+        end
 })
 
 MainSection:AddDropdown('AimPartDropdown', {
@@ -668,5 +671,55 @@ task.spawn(function()
         end
         
         task.wait(0.05)
+    end
+end)
+
+local DesyncSection = Tabs.Movement:AddRightGroupbox('Desync')
+
+DesyncSection:AddToggle('DesyncToggle', {
+    Text = 'Enable Desync',
+    Default = false,
+    Callback = function(Value)
+        Ragebot.Desync = Value
+    end
+})
+
+DesyncSection:AddToggle('DesyncVelocityToggle', {
+    Text = 'Enable Velocity',
+    Default = false,
+    Callback = function(Value)
+        Ragebot.DesyncVelocity = Value
+    end
+})
+
+local Sleeping = false
+local originalVelocity = Vector3.new()
+
+RunService.PostSimulation:Connect(function()
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local rootPart = LocalPlayer.Character.HumanoidRootPart
+        
+        if Ragebot.Desync then
+            Sleeping = not Sleeping
+            setfflag("S2PhysicsSenderRate", 2)
+            sethiddenproperty(rootPart, "NetworkIsSleeping", Sleeping)
+            
+            if Ragebot.DesyncVelocity then
+                if Sleeping then
+                    originalVelocity = rootPart.Velocity
+                    rootPart.Velocity = Vector3.new(9e9, 9e9, 9e9)
+                else
+                    rootPart.Velocity = originalVelocity
+                end
+            end
+        else
+            Sleeping = false
+            setfflag("S2PhysicsSenderRate", 13)
+            sethiddenproperty(rootPart, "NetworkIsSleeping", Sleeping)
+            
+            if Ragebot.DesyncVelocity then
+                rootPart.Velocity = originalVelocity
+            end
+        end
     end
 end)

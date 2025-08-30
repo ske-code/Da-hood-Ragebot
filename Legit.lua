@@ -708,6 +708,8 @@ RunService.PostSimulation:Connect(function()
                 if Sleeping then
                     originalVelocity = rootPart.Velocity
                     rootPart.Velocity = Vector3.new(9e9, 9e9, 9e9)
+                    wait()
+                    rootPart.Velocity = originalVelocity
                 else
                     rootPart.Velocity = originalVelocity
                 end
